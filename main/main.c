@@ -36,7 +36,7 @@
 #include "llm.h"
 #endif
 
-#define PIN_LCD_BL 14
+#define PIN_LCD_BL 38
 
 #define TAG "main"
 
