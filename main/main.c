@@ -4,8 +4,8 @@
  * A tiny language model (3.3M parameters, trained on children's stories)
  * runs on the ESP32-S3 and types each story onto the screen as it writes it.
  *
- *   BOOT button (below the USB port): tell a new story
- *   KEY  button (above the USB port): change the story's theme
+ *   BOOT button (above the USB port): tell a new story
+ *   KEY  button (below the USB port): change the story's theme
  *   Drag a finger up/down on the screen: scroll through the story
  *
  * The model engine (llm8.c) is from Dory's esp32-llm project (MIT licence),
@@ -370,10 +370,10 @@ static void show_message(const char *const *msg, int n) {
 static void show_instructions(void) {
   static const char *const msg[] = {
       "",
-      "  Press BOOT (below USB)",
+      "  Press BOOT (above USB)",
       "  to hear a story.",
       "",
-      "  Press KEY (above USB)",
+      "  Press KEY (below USB)",
       "  to change the theme.",
       "",
       "  Drag your finger up and down",
