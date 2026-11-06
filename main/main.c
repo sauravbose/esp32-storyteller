@@ -38,6 +38,8 @@
 #define TEMPERATURE 0.8f  // lower = safer, more predictable; higher = wilder
 #define TOP_P       0.9f  // only pick from the most likely words (90% of probability)
 #define MAX_TOKENS  512   // longest possible story (the model's limit)
+#define WORD_DELAY_MS     150  // extra pause after each word, in milliseconds (0 = full speed)
+#define SENTENCE_DELAY_MS 400  // extra pause after . ! or ?
 
 // Each theme has a name (shown at the top) and an opening line the model continues.
 // An empty opening ("") lets the model start completely on its own.
@@ -283,6 +285,13 @@ static void on_token(const char *piece, void *user_data) {
   for (const char *p = piece; *p; p++) put_char(*p);
   if (cur_row == start_row) draw_line(cur_row);  // (scrolling already redrew everything)
   else { draw_line(start_row); draw_line(cur_row); }
+
+  // Pause so the words appear at a reading pace.
+  int delay_ms = WORD_DELAY_MS;
+  size_t len = strlen(piece);
+  if (len > 0 && strchr(".!?", piece[len - 1])) delay_ms += SENTENCE_DELAY_MS;
+  if (delay_ms > 0) vTaskDelay(pdMS_TO_TICKS(delay_ms));
+  
 }
 
 static void show_message(const char *const *msg_lines, int n) {
