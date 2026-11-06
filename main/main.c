@@ -7,6 +7,7 @@
  *   BOOT button (above the USB port): tell a new story
  *   KEY  button (below the USB port): change the story's theme
  *   Drag a finger up/down on the screen: scroll through the story
+ *   Tap the round button on the screen: back to the home screen
  *
  * The model engine (llm8.c) is from Dory's esp32-llm project (MIT licence),
  * itself a port of Andrej Karpathy's llama2.c. This file replaces that
@@ -44,7 +45,8 @@
 #define WORD_DELAY_MS     150  // extra pause after each word, in milliseconds (0 = full speed)
 #define SENTENCE_DELAY_MS 400  // extra pause after . ! or ?
 
-#define TOUCH_FLIP 0  // set to 1 if dragging scrolls the wrong way
+#define TOUCH_FLIP 0   // set to 1 if dragging scrolls the wrong way
+#define TOUCH_DEBUG 1  // 1 = print where each touch lands (to the Mac terminal)
 
 // Each theme has a name (shown at the top) and an opening line the model continues.
 // An empty opening ("") lets the model start completely on its own.
@@ -74,8 +76,8 @@ static const struct {
 #define PIN_LCD_RES   5
 static const int DATA_PINS[8] = {39, 40, 41, 42, 45, 46, 47, 48};
 
-#define PIN_BUTTON_BOOT 0   // below the USB port
-#define PIN_BUTTON_KEY  14  // above the USB port
+#define PIN_BUTTON_BOOT 0   // above the USB port
+#define PIN_BUTTON_KEY  14  // below the USB port
 
 #define PIN_TOUCH_SDA 18  // touch chip's I2C data line
 #define PIN_TOUCH_SCL 17  // touch chip's I2C clock line
@@ -474,47 +476,79 @@ static void touch_init(void) {
            touch_chip == TOUCH_CST328 ? "CST328" : "CST816", address);
 }
 
-// Is a finger on the screen? If so, set *y to its height on the screen
-// (0 = top, 169 = bottom) and return true.
-static bool touch_read(int *y) {
-  if (touch_chip == TOUCH_NONE) return false;
+// What the touchscreen is reporting right now.
+typedef enum { NO_TOUCH, TOUCH_SCREEN, TOUCH_HOME } touch_t;
+static int last_raw_x, last_raw_y;  // the chip's own numbers, for TOUCH_DEBUG
+
+// Read the touchscreen. For a touch on the display, *y is set to its height
+// on the screen (0 = top, 169 = bottom).
+static touch_t touch_read(int *y) {
+  if (touch_chip == TOUCH_NONE) return NO_TOUCH;
   uint8_t reg = 0x00;
   uint8_t buf[28] = {0};
   int raw_x, raw_y;
 
   if (touch_chip == TOUCH_CST328) {
-    if (i2c_master_transmit_receive(touch_dev, &reg, 1, buf, 28, 50) != ESP_OK) return false;
-    if (buf[6] != 0xAB || buf[0] == 0xAB || buf[0] == 0x00 || buf[5] == 0x80) return false;
+    if (i2c_master_transmit_receive(touch_dev, &reg, 1, buf, 28, 50) != ESP_OK) return NO_TOUCH;
+    if (buf[6] != 0xAB || buf[0] == 0xAB || buf[0] == 0x00 || buf[5] == 0x80) return NO_TOUCH;
     int fingers = buf[5] & 0x7F;
     if (fingers == 0 || fingers > 5) {
       uint8_t clear[2] = {0x00, 0xAB};
       i2c_master_transmit(touch_dev, clear, 2, 50);
-      return false;
+      return NO_TOUCH;
     }
     raw_x = (buf[1] << 4) | (buf[3] >> 4);
     raw_y = (buf[2] << 4) | (buf[3] & 0x0F);
   } else {
-    if (i2c_master_transmit_receive(touch_dev, &reg, 1, buf, 13, 50) != ESP_OK) return false;
+    if (i2c_master_transmit_receive(touch_dev, &reg, 1, buf, 13, 50) != ESP_OK) return NO_TOUCH;
     int fingers = buf[2] & 0x0F;
-    if (buf[2] == 0xFF || fingers == 0) return false;
+    if (buf[2] == 0xFF || fingers == 0) return NO_TOUCH;
     raw_x = ((buf[3] & 0x0F) << 8) | buf[4];
     raw_y = ((buf[5] & 0x0F) << 8) | buf[6];
   }
 
   // The touch chip measures in portrait (170 wide x 320 tall), but we use the
   // screen in landscape, so the chip's x is the screen's height (y).
-  if (raw_y > LCD_W) return false;  // touches on the round "home" circle: ignore
+  // The round button sits past the end of the display, so the chip reports
+  // it as a position beyond 320.
+  last_raw_x = raw_x;
+  last_raw_y = raw_y;
+  if (raw_y >= LCD_W) return TOUCH_HOME;
   *y = TOUCH_FLIP ? (LCD_H - 1 - raw_x) : raw_x;
-  return true;
+  return TOUCH_SCREEN;
 }
 
 // Drag-to-scroll: the text follows your finger, one line per 16 pixels.
 static bool dragging = false;
 static int drag_start_y, drag_start_top;
 
+static bool home_down = false;
+static touch_t previous = NO_TOUCH;
+
 static void handle_touch(void) {
-  int y;
-  if (!touch_read(&y)) {
+  int y = 0;
+  touch_t t = touch_read(&y);
+
+#if TOUCH_DEBUG
+  if (t != NO_TOUCH && previous == NO_TOUCH)  // log once, when a finger lands
+    ESP_LOGI(TAG, "Touch: chip x=%d y=%d -> %s", last_raw_x, last_raw_y,
+             t == TOUCH_HOME ? "home button" : "screen");
+#endif
+  previous = t;
+
+  if (t == TOUCH_HOME) {
+    if (!home_down) {  // react once per tap, not for as long as it's held
+      home_down = true;
+      dragging = false;
+      ESP_LOGI(TAG, "Home button tapped");
+      draw_header("ready");
+      show_instructions();
+    }
+    return;
+  }
+  home_down = false;
+
+  if (t == NO_TOUCH) {
     dragging = false;
     return;
   }
