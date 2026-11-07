@@ -1,0 +1,2 @@
+# Your board has 16MB of flash
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
