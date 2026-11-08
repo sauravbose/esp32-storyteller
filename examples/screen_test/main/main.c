@@ -185,7 +185,7 @@ static void screen_init(void) {
 
 static void draw_page(const char *button_msg) {
   fill_rect(0, 0, LCD_W, LCD_H, BLACK);
-  draw_text(8, 6, "Hello, Zen!", YELLOW, 2);  // big title (16x32 per letter)
+  draw_text(8, 6, "Hello!", YELLOW, 2);  // big title (16x32 per letter)
   draw_text(8, 46, "The screen works.", WHITE, 1);
   draw_text(8, 64, "320 x 170 pixels, 40 x 10 chars", GREY, 1);
 
