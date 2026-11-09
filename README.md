@@ -6,7 +6,7 @@ It runs on a **LilyGO T-Display S3 Touch** (ESP32-S3, 8MB PSRAM). Press a button
 
 > Once upon a time, there was a small bird. The bird was very small, but it was very gentle. One day, the bird saw a big, juicy worm on a vine...
 
-📖 **Full build guide and write-up:** [A Storyteller the Size of My Thumb](LINK-TO-YOUR-SUBSTACK-ARTICLE)
+📖 **Full build guide and write-up:** [A Storyteller the Size of My Thumb](https://sauravbose.substack.com/p/a-storyteller-the-size-of-my-thumb?r=249yh2&utm_campaign=post-expanded-share&utm_medium=web)
 
 ## Features
 
